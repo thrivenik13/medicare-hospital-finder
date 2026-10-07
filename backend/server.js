@@ -14,28 +14,39 @@ app.use(express.json());
 app.get('/api/health', (_req, res) => {
   res.json({
     ok: true,
-    message: 'Medicare Hospital Finder API is running.',
+    message: 'Thira Care API is running.',
   });
 });
 
+const toBool = (value) => value === 'true' || value === true;
+
 app.get('/api/hospitals', async (req, res) => {
   try {
-    const { city, state, specialty, zip } = req.query;
+    const { city, state, specialty, zip, radius, medicareOnly, emergencyOnly } = req.query;
     const filePath = path.join(__dirname, 'data', 'hospitals.json');
     const raw = await readFile(filePath, 'utf8');
-    const hospitals = JSON.parse(raw);
+    let hospitals = JSON.parse(raw);
 
-    const filteredHospitals = hospitals.filter((hospital) => {
+    hospitals = hospitals.filter((hospital) => {
       const cityMatch = !city || hospital.city.toLowerCase().includes(String(city).toLowerCase());
       const stateMatch = !state || hospital.state.toLowerCase() === String(state).toLowerCase();
       const specialtyMatch =
         !specialty || hospital.specialty.toLowerCase().includes(String(specialty).toLowerCase());
       const zipMatch = !zip || hospital.zip === String(zip);
+      const medicareMatch = !toBool(medicareOnly) || hospital.acceptsMedicare;
+      const emergencyMatch = !toBool(emergencyOnly) || hospital.emergencyCare;
 
-      return cityMatch && stateMatch && specialtyMatch && zipMatch;
+      return cityMatch && stateMatch && specialtyMatch && zipMatch && medicareMatch && emergencyMatch;
     });
 
-    res.json(filteredHospitals);
+    const maxRadius = radius ? Number(radius) : null;
+    if (maxRadius && Number.isFinite(maxRadius)) {
+      hospitals = hospitals.filter((hospital) => Number(hospital.distance) <= maxRadius);
+    }
+
+    hospitals = hospitals.sort((a, b) => Number(a.distance) - Number(b.distance));
+
+    res.json(hospitals);
   } catch (error) {
     console.error('Failed to load hospitals:', error);
     res.status(500).json({ error: 'Unable to load hospital data.' });
@@ -43,5 +54,5 @@ app.get('/api/hospitals', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Medicare Hospital Finder API listening on http://localhost:${PORT}`);
+  console.log(`Thira Care API listening on http://localhost:${PORT}`);
 });

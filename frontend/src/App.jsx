@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import 'leaflet/dist/leaflet.css';
 import { CircleMarker, MapContainer, Popup, TileLayer } from 'react-leaflet';
 
@@ -7,6 +7,18 @@ const defaultFilters = {
   state: '',
   specialty: '',
   zip: '',
+  radius: '25',
+  medicareOnly: false,
+  emergencyOnly: false,
+};
+
+const readFavorites = () => {
+  try {
+    const saved = localStorage.getItem('thira-care-favorites');
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
 };
 
 function App() {
@@ -15,6 +27,11 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedHospitalId, setSelectedHospitalId] = useState(null);
+  const [favorites, setFavorites] = useState(readFavorites);
+
+  useEffect(() => {
+    localStorage.setItem('thira-care-favorites', JSON.stringify(favorites));
+  }, [favorites]);
 
   const fetchHospitals = async (searchParams = {}) => {
     setLoading(true);
@@ -56,24 +73,37 @@ function App() {
   }, [hospitals, selectedHospitalId]);
 
   const handleChange = (event) => {
-    const { name, value } = event.target;
-    setFilters((prev) => ({ ...prev, [name]: value }));
+    const { name, type, checked, value } = event.target;
+    setFilters((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
   };
 
   const handleSubmit = (event) => {
     event.preventDefault();
     const searchParams = Object.fromEntries(
-      Object.entries(filters).filter(([, value]) => value.trim() !== '')
+      Object.entries(filters)
+        .filter(([, value]) => value !== '' && value !== false)
+        .map(([key, value]) => [key, String(value)])
     );
     fetchHospitals(searchParams);
   };
 
-  const selectedHospital =
-    hospitals.find((hospital) => hospital.id === selectedHospitalId) || hospitals[0] || null;
+  const toggleFavorite = (hospitalId) => {
+    setFavorites((prev) =>
+      prev.includes(hospitalId) ? prev.filter((id) => id !== hospitalId) : [...prev, hospitalId]
+    );
+  };
 
-  const mapCenter = selectedHospital
-    ? [selectedHospital.lat, selectedHospital.lng]
-    : [39.5, -98.35];
+  const selectedHospital = useMemo(
+    () => hospitals.find((hospital) => hospital.id === selectedHospitalId) || hospitals[0] || null,
+    [hospitals, selectedHospitalId]
+  );
+
+  const mapCenter = selectedHospital ? [selectedHospital.lat, selectedHospital.lng] : [39.5, -98.35];
+
+  const favoriteCount = favorites.length;
 
   return (
     <div className="app-shell">
@@ -104,8 +134,8 @@ function App() {
             </strong>
           </div>
           <div className="metric-card">
-            <span className="metric-label">Coverage</span>
-            <strong>{hospitals.filter((item) => item.acceptsMedicare).length}</strong>
+            <span className="metric-label">Favorites</span>
+            <strong>{favoriteCount}</strong>
           </div>
         </div>
       </header>
@@ -165,6 +195,39 @@ function App() {
               />
             </div>
 
+            <div className="input-group">
+              <label htmlFor="radius">Radius (miles)</label>
+              <select id="radius" name="radius" value={filters.radius} onChange={handleChange}>
+                <option value="5">5 miles</option>
+                <option value="10">10 miles</option>
+                <option value="25">25 miles</option>
+                <option value="50">50 miles</option>
+                <option value="100">100 miles</option>
+              </select>
+            </div>
+
+            <div className="checkbox-row">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  name="medicareOnly"
+                  checked={filters.medicareOnly}
+                  onChange={handleChange}
+                />
+                Medicare only
+              </label>
+
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  name="emergencyOnly"
+                  checked={filters.emergencyOnly}
+                  onChange={handleChange}
+                />
+                Emergency care only
+              </label>
+            </div>
+
             <div className="button-row">
               <button type="submit">Search hospitals</button>
               <button
@@ -201,6 +264,9 @@ function App() {
                       fillOpacity: 0.8,
                       weight: selectedHospitalId === hospital.id ? 3 : 2,
                     }}
+                    eventHandlers={{
+                      click: () => setSelectedHospitalId(hospital.id),
+                    }}
                   >
                     <Popup>
                       <div className="popup-card">
@@ -223,6 +289,44 @@ function App() {
             <div className="section-heading compact">
               <h2>Nearby facilities</h2>
             </div>
+
+            {selectedHospital && (
+              <div className="detail-card">
+                <div className="detail-header">
+                  <div>
+                    <p className="detail-label">Selected facility</p>
+                    <h3>{selectedHospital.name}</h3>
+                  </div>
+                  <button
+                    type="button"
+                    className={`fav-button ${favorites.includes(selectedHospital.id) ? 'active' : ''}`}
+                    onClick={() => toggleFavorite(selectedHospital.id)}
+                    aria-label="Toggle favorite"
+                  >
+                    {favorites.includes(selectedHospital.id) ? '★ Saved' : '☆ Save'}
+                  </button>
+                </div>
+
+                <ul className="detail-list">
+                  <li>
+                    <span>Specialty</span>
+                    <strong>{selectedHospital.specialty}</strong>
+                  </li>
+                  <li>
+                    <span>Distance</span>
+                    <strong>{selectedHospital.distance} miles</strong>
+                  </li>
+                  <li>
+                    <span>Rating</span>
+                    <strong>{selectedHospital.rating} / 5</strong>
+                  </li>
+                  <li>
+                    <span>Availability</span>
+                    <strong>{selectedHospital.acceptsMedicare ? 'Medicare accepted' : 'Coverage varies'}</strong>
+                  </li>
+                </ul>
+              </div>
+            )}
 
             {loading ? (
               <p className="status">Loading hospitals...</p>
@@ -255,9 +359,21 @@ function App() {
                       <li>Distance: {hospital.distance} miles</li>
                     </ul>
 
-                    <div className="badges">
-                      <span>{hospital.acceptsMedicare ? 'Medicare accepted' : 'Coverage varies'}</span>
-                      <span>{hospital.emergencyCare ? 'Emergency care' : 'Non-emergency services'}</span>
+                    <div className="card-actions">
+                      <div className="badges">
+                        <span>{hospital.acceptsMedicare ? 'Medicare accepted' : 'Coverage varies'}</span>
+                        <span>{hospital.emergencyCare ? 'Emergency care' : 'Routine care'}</span>
+                      </div>
+
+                      <span
+                        className={`mini-fav ${favorites.includes(hospital.id) ? 'active' : ''}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          toggleFavorite(hospital.id);
+                        }}
+                      >
+                        {favorites.includes(hospital.id) ? '★ Saved' : '☆ Save'}
+                      </span>
                     </div>
                   </button>
                 ))}
