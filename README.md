@@ -1,6 +1,6 @@
-# Medicare Hospital Finder
+# Thira Care
 
-This project is a starter app for discovering nearby hospitals and Medicare-covered services using location-based search and interactive hospital listings.
+Thira Care helps patients quickly discover nearby hospitals, compare care options, and find Medicare-covered services with a clearer, more patient-friendly experience.
 
 ## Features
 
@@ -8,6 +8,7 @@ This project is a starter app for discovering nearby hospitals and Medicare-cove
 - Filter results for Medicare-accepted facilities
 - View hospital ratings, distance, and service type
 - Frontend + backend architecture for easy extension
+- Modern healthcare dashboard experience
 
 ## Tech stack
 
@@ -44,7 +45,7 @@ curl "http://localhost:5000/api/hospitals?specialty=Cardiology"
 ## Project structure
 
 ```text
-medicare-hospital-finder/
+thira-care/
 ├── backend/
 │   ├── data/
 │   │   └── hospitals.json

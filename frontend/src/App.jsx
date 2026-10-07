@@ -56,10 +56,10 @@ function App() {
     <div className="app-shell">
       <header className="hero">
         <div className="hero__content">
-          <p className="eyebrow">Medicare Hospital Finder</p>
-          <h1>Find nearby hospitals and covered services faster.</h1>
+          <p className="eyebrow">Thira Care</p>
+          <h1>Find trusted nearby care and Medicare-covered services.</h1>
           <p className="subtitle">
-            Search by city, state, specialty, or ZIP code to compare hospital options and patient services.
+            Search by city, state, specialty, or ZIP code to compare hospitals and find the right care quickly.
           </p>
         </div>
       </header>
@@ -117,7 +117,14 @@ function App() {
 
             <div className="button-row">
               <button type="submit">Search hospitals</button>
-              <button type="button" className="secondary" onClick={() => { setFilters(defaultFilters); fetchHospitals(); }}>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  setFilters(defaultFilters);
+                  fetchHospitals();
+                }}
+              >
                 Clear
               </button>
             </div>
